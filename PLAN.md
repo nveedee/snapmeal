@@ -20,7 +20,7 @@ Modul 335 | Stand: 01.07.2026
 
 | Phase | Inhalt | Zuständig | Status |
 |---|---|---|---|
-| 1 | Fundament: Pakete, Navigation, Datenbank | Noel | ⬜ offen |
+| 1 | Fundament: Pakete, Navigation, Datenbank | Noel | ✅ fertig |
 | 2 | Kernfeature: Kamera + AI + Bestätigungsformular | Elias | ⬜ offen |
 | 3 | Home-Tab: Tagesübersicht + Detailscreen + Einstellungen | Noel | ⬜ offen |
 | 4 | Karten-Tab | Ron | ⬜ offen |
@@ -43,7 +43,7 @@ npx expo install @react-native-async-storage/async-storage
 npx expo install react-native-maps
 ```
 
-Status: ⬜ offen
+Status: ✅ fertig
 
 ---
 
@@ -70,7 +70,7 @@ Neue Platzhalter-Dateien anlegen:
 - `app/settings.tsx`
 - `app/confirm-entry.tsx`
 
-Status: ⬜ offen
+Status: ✅ fertig
 
 ---
 
@@ -105,7 +105,7 @@ Zu implementierende Funktionen:
 
 `initDB()` in `app/_layout.tsx` beim App-Start aufrufen.
 
-Status: ⬜ offen
+Status: ✅ fertig
 
 ---
 
