@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import * as Location from 'expo-location';
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -9,15 +11,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import MapView, { Region } from 'react-native-maps';
+import MapView, { Callout, Marker, Region } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Palette } from '@/constants/theme';
+import { useFocusEffect } from '@react-navigation/native';
 
-// TODO Ron: Meal-Marker aus DB laden und hier als <Marker>-Komponenten einfügen (Phase 4)
-// Beispiel:
-// <Marker key={meal.id} coordinate={{ latitude: meal.latitude!, longitude: meal.longitude! }}
-//         onPress={() => router.push(`/meal/${meal.id}`)} />
+import { Palette } from '@/constants/theme';
+import { Meal, getAllMeals } from '@/lib/db';
 
 const SWITZERLAND: Region = {
   latitude: 46.8182,
@@ -32,6 +32,14 @@ export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const [locStatus, setLocStatus] = useState<LocStatus>('idle');
+  const [meals, setMeals] = useState<Meal[]>([]);
+
+  // Mahlzeiten neu laden wenn Tab geöffnet wird
+  useFocusEffect(
+    useCallback(() => {
+      getAllMeals().then(setMeals);
+    }, []),
+  );
 
   const goToCurrentLocation = async () => {
     setLocStatus('loading');
@@ -59,6 +67,13 @@ export default function MapScreen() {
     goToCurrentLocation();
   }, []);
 
+  const mealMarkers = meals.filter(m => m.latitude != null && m.longitude != null);
+
+  const formatDate = (iso: string) => {
+    const d = new Date(iso);
+    return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}. ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+  };
+
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
@@ -67,7 +82,11 @@ export default function MapScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <View>
           <Text style={styles.headerTitle}>Karte</Text>
-          <Text style={styles.headerSubtitle}>Wo hast du was gegessen?</Text>
+          <Text style={styles.headerSubtitle}>
+            {mealMarkers.length > 0
+              ? `${mealMarkers.length} Mahlzeit${mealMarkers.length !== 1 ? 'en' : ''} auf der Karte`
+              : 'Wo hast du was gegessen?'}
+          </Text>
         </View>
 
         <TouchableOpacity
@@ -96,12 +115,59 @@ export default function MapScreen() {
         showsMyLocationButton={false}
         showsCompass
         showsScale>
-        {/* TODO Ron: Meal-Marker hier einfügen (Phase 4) */}
+
+        {mealMarkers.map(meal => (
+          <Marker
+            key={meal.id}
+            coordinate={{ latitude: meal.latitude!, longitude: meal.longitude! }}>
+
+            {/* Custom Marker-Pin */}
+            <View style={styles.pin}>
+              {meal.photo_uri ? (
+                <Image source={{ uri: meal.photo_uri }} style={styles.pinPhoto} contentFit="cover" />
+              ) : (
+                <Ionicons name="restaurant" size={16} color={Palette.green600} />
+              )}
+            </View>
+
+            {/* Callout-Popup beim Antippen */}
+            <Callout onPress={() => router.push(`/meal/${meal.id}`)}>
+              <View style={styles.callout}>
+                {meal.photo_uri && (
+                  <Image
+                    source={{ uri: meal.photo_uri }}
+                    style={styles.calloutPhoto}
+                    contentFit="cover"
+                  />
+                )}
+                <View style={styles.calloutInfo}>
+                  <Text style={styles.calloutName} numberOfLines={1}>{meal.food_name}</Text>
+                  {meal.calories != null && (
+                    <Text style={styles.calloutCal}>{Math.round(meal.calories)} kcal</Text>
+                  )}
+                  <Text style={styles.calloutDate}>{formatDate(meal.timestamp)}</Text>
+                  <Text style={styles.calloutHint}>Tippen für Details →</Text>
+                </View>
+              </View>
+            </Callout>
+          </Marker>
+        ))}
+
       </MapView>
 
-      {/* Hinweis bei verweigertem Standort */}
-      {locStatus === 'denied' && (
-        <View style={styles.banner}>
+      {/* Kein GPS-Eintrag vorhanden */}
+      {mealMarkers.length === 0 && (
+        <View style={styles.emptyBanner}>
+          <Ionicons name="map-outline" size={14} color={Palette.muted} />
+          <Text style={styles.bannerText}>
+            Noch keine Mahlzeiten mit Standort – beim nächsten Foto GPS erlauben
+          </Text>
+        </View>
+      )}
+
+      {/* Standort verweigert */}
+      {locStatus === 'denied' && mealMarkers.length === 0 && (
+        <View style={[styles.emptyBanner, { bottom: 64 }]}>
           <Ionicons name="location-outline" size={14} color={Palette.muted} />
           <Text style={styles.bannerText}>
             Standort-Zugriff verweigert – in den Einstellungen aktivieren
@@ -115,7 +181,6 @@ export default function MapScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Palette.green50 },
 
-  // Header
   header: {
     backgroundColor: Palette.green400,
     paddingHorizontal: 20,
@@ -147,7 +212,67 @@ const styles = StyleSheet.create({
 
   map: { flex: 1 },
 
-  banner: {
+  // Marker-Pin
+  pin: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Palette.white,
+    borderWidth: 2.5,
+    borderColor: Palette.green400,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  pinPhoto: {
+    width: 44,
+    height: 44,
+  },
+
+  // Callout
+  callout: {
+    flexDirection: 'row',
+    gap: 10,
+    padding: 10,
+    width: 220,
+  },
+  calloutPhoto: {
+    width: 60,
+    height: 60,
+    borderRadius: 10,
+  },
+  calloutInfo: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 2,
+  },
+  calloutName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Palette.green900,
+  },
+  calloutCal: {
+    fontSize: 12,
+    color: Palette.green500,
+    fontWeight: '600',
+  },
+  calloutDate: {
+    fontSize: 11,
+    color: Palette.muted,
+  },
+  calloutHint: {
+    fontSize: 10,
+    color: Palette.green300,
+    marginTop: 2,
+  },
+
+  // Leerer/Denied Banner
+  emptyBanner: {
     position: 'absolute',
     bottom: 16,
     left: 16,
