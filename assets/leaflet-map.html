@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>SnapMeal Karte</title>
+
+  <!--
+    KI-generiert (Claude Sonnet 4.6, 01.07.2026)
+    Zweck: Leaflet CSS via unpkg-CDN laden – kein API-Key erforderlich.
+    Quelle: https://leafletjs.com  |  Lizenz: BSD 2-Clause
+  -->
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin="" />
+
+  <style>
+    html, body { height: 100%; margin: 0; padding: 0; }
+    #map       { height: 100%; width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <!--
+    KI-generiert (Claude Sonnet 4.6, 01.07.2026)
+    Zweck: Leaflet JS via unpkg-CDN laden.
+    Quelle: https://leafletjs.com  |  Lizenz: BSD 2-Clause
+  -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLs="
+          crossorigin=""></script>
+
+  <script>
+    /*
+     * KI-generiert (Claude Sonnet 4.6, 01.07.2026)
+     * Zweck: Leaflet-Karte mit OpenStreetMap-Tile-Layer initialisieren.
+     * Tile-Quelle: https://www.openstreetmap.org  |  Lizenz: ODbL
+     * Startansicht: Schweiz (46.8182° N, 8.2275° O), Zoom 8
+     */
+    const map = L.map('map', { zoomControl: true }).setView([46.8182, 8.2275], 8);
+
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Beitragende'
+    }).addTo(map);
+
+
+    // ── Hilfsfunktion: Nachricht an React Native senden ────────────────
+    // KI-generiert – Schnittstelle zwischen WebView und React Native.
+    function sendToRN(payload) {
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(payload));
+      }
+    }
+
+
+    // ── addMarkers(data) ────────────────────────────────────────────────
+    // Leere Funktion – wird von Ron befüllt (Phase 4).
+    //
+    // Erwartetes data-Format (Array von Objekten):
+    //   {
+    //     id:        number,
+    //     lat:       number,
+    //     lng:       number,
+    //     food_name: string,
+    //     calories:  number | null,
+    //     photo_uri: string | null
+    //   }
+    //
+    // Marker-Klick soll folgendes via sendToRN() senden:
+    //   { type: 'marker_tap', mealId: <id> }
+    function addMarkers(data) {
+      // TODO Ron: Marker aus data-Array erzeugen und zur Karte hinzufügen
+    }
+
+
+    // ── Karten-Klick weiterleiten ───────────────────────────────────────
+    // KI-generiert – für spätere Nutzung (z.B. neuen Eintrag an Klick-Position).
+    map.on('click', function (e) {
+      sendToRN({
+        type: 'map_click',
+        lat:  e.latlng.lat,
+        lng:  e.latlng.lng
+      });
+    });
+  </script>
+</body>
+</html>
