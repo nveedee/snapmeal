@@ -7,12 +7,10 @@ Modul 335 | Stand: 01.07.2026
 
 | Person | Verantwortlich für |
 |---|---|
-| **Noel** | Phase 1 (Fundament) + Phase 3 (Home-Tab, Detail, Einstellungen) |
-| **Elias** | Phase 2 (Kamera + AI + Bestätigungsformular) |
-| **Ron** | Phase 4 (Karten-Tab) + Phase 5 (Verlauf/Statistik) |
+| **Noel** | Phase 1 (Fundament) + Phase 3 (Home-Tab, Detail, Einstellungen) + Karten-Skeleton |
+| **Elias** | Phase 2 (AI-Anbindung + confirm-entry fertigstellen) |
+| **Ron** | Phase 4 (Meal-Marker auf Karte) + Phase 5 (Verlauf/Statistik) |
 | **Alle** | Phase 6 (Polish, Fehlerbehandlung, Dokumentation) |
-
-> **Wichtig:** Phase 1 muss als erstes abgeschlossen sein, bevor Elias und Ron mit ihrer Arbeit beginnen können (Pakete und DB-Schicht werden überall gebraucht).
 
 ---
 
@@ -21,11 +19,37 @@ Modul 335 | Stand: 01.07.2026
 | Phase | Inhalt | Zuständig | Status |
 |---|---|---|---|
 | 1 | Fundament: Pakete, Navigation, Datenbank | Noel | ✅ fertig |
-| 2 | Kernfeature: Kamera + AI + Bestätigungsformular | Elias | ⬜ offen |
+| 2.1 | Kamera-Screen (new-entry.tsx) | Noel | ✅ fertig |
+| 2.2 | AI-Anbindung (lib/foodAI.ts) | Elias | ⬜ offen |
+| 2.3 | confirm-entry.tsx – Formular + GPS + insertMeal | Noel/Elias | 🔧 in Arbeit |
 | 3 | Home-Tab: Tagesübersicht + Detailscreen + Einstellungen | Noel | ✅ fertig |
-| 4 | Karten-Tab | Ron | ⬜ offen |
+| 4.0 | Karten-Skeleton (MapView + Standort + UI) | Noel | ✅ fertig |
+| 4.1 | Meal-Marker auf Karte (Marker + Callout) | Ron | ⬜ offen |
 | 5 | Verlauf/Statistik-Tab | Ron | ⬜ offen |
 | 6 | Polish, Fehlerbehandlung, Dokumentationspflichten | Alle | ⬜ offen |
+
+---
+
+## Was bereits gebaut ist (Code vorhanden)
+
+| Datei | Inhalt |
+|---|---|
+| `lib/db.ts` | Vollständige SQLite-Schicht (initDB, insertMeal, getMealsToday, getMealById, getAllMeals, getMealsByDay) |
+| `lib/maps-stub.ts` | Web-Stub für react-native-maps (Metro-Resolver-Fix) |
+| `app/_layout.tsx` | Stack-Navigation mit allen Screens registriert |
+| `app/(tabs)/_layout.tsx` | 4 Tabs: Home / Kamera / Karte / Verlauf |
+| `app/(tabs)/index.tsx` | Home: FlatList heutiger Mahlzeiten, Fortschrittsbalken, Makro-Chips |
+| `app/(tabs)/new-entry.tsx` | Kamera-Screen: CameraView, Foto aufnehmen, Galerie, Permissions |
+| `app/(tabs)/map.tsx` | Karte (native): MapView, Standortermittlung, UI-Header |
+| `app/(tabs)/map.web.tsx` | Karte (web): Fallback-Screen ohne react-native-maps |
+| `app/(tabs)/history.tsx` | Verlauf: Platzhalter mit Mock-Balkendiagramm (Ron befüllt) |
+| `app/meal/[id].tsx` | Detailscreen: Foto, Nährwerte, Koordinaten |
+| `app/settings.tsx` | Einstellungen: Tagesziel + Name via AsyncStorage |
+| `app/confirm-entry.tsx` | Bestätigungsformular: Platzhalter-UI (noch nicht funktional) |
+| `app/gallery.tsx` | Fotogalerie: alle Mahlzeiten 3-spaltig |
+| `constants/theme.ts` | Palette (Pastelgrün-Farben) |
+| `metro.config.js` | wasm-Assets + react-native-maps Web-Resolver |
+| `assets/leaflet-map.html` | Leaflet-HTML (archiviert, nicht mehr genutzt) |
 
 ---
 
@@ -33,7 +57,7 @@ Modul 335 | Stand: 01.07.2026
 
 # NOEL – Phase 1: Fundament
 
-> Muss zuerst fertig sein. Elias und Ron können erst danach starten.
+> ✅ Vollständig abgeschlossen.
 
 ### 1.1 Pakete installieren
 
@@ -48,27 +72,6 @@ Status: ✅ fertig
 ---
 
 ### 1.2 Navigation auf 4 Tabs umbauen
-
-Datei: `app/(tabs)/_layout.tsx`
-
-Tabs (in dieser Reihenfolge):
-- **index** → Home (Icon: `house.fill`)
-- **new-entry** → Neuer Eintrag / Kamera (Icon: `camera.fill`)
-- **map** → Karte (Icon: `map.fill`)
-- **history** → Verlauf (Icon: `chart.bar.fill`)
-
-Datei: `app/_layout.tsx`
-- Stack-Screen `meal/[id]` für Detailansicht hinzufügen
-- Stack-Screen `settings` für Einstellungen hinzufügen
-- Stack-Screen `confirm-entry` für Bestätigungsformular hinzufügen
-
-Neue Platzhalter-Dateien anlegen:
-- `app/(tabs)/new-entry.tsx`
-- `app/(tabs)/map.tsx`
-- `app/(tabs)/history.tsx`
-- `app/meal/[id].tsx`
-- `app/settings.tsx`
-- `app/confirm-entry.tsx`
 
 Status: ✅ fertig
 
@@ -95,69 +98,34 @@ CREATE TABLE IF NOT EXISTS meals (
 );
 ```
 
-Zu implementierende Funktionen:
-- `initDB()` – Tabelle anlegen, beim App-Start aufrufen
-- `insertMeal(meal)` – neuen Eintrag speichern
-- `getMealsToday()` – Einträge von heute (für Home-Tab)
-- `getMealById(id)` – Einzeleintrag (für Detailscreen)
-- `getAllMeals()` – alle Einträge (für Karte und Verlauf)
-- `getMealsByDay()` – gruppiert nach Tag (für Statistik)
-
-`initDB()` in `app/_layout.tsx` beim App-Start aufrufen.
-
 Status: ✅ fertig
 
 ---
 
 # NOEL – Phase 3: Home-Tab, Detail & Einstellungen
 
-> Kann parallel zu Elias (Phase 2) und Ron (Phase 4/5) entwickelt werden, sobald Phase 1 fertig ist.
+> ✅ Vollständig abgeschlossen.
 
-### 3.1 Home-Tab – Tagesübersicht
-
-Datei: `app/(tabs)/index.tsx`
-
-Elemente:
-- Header mit aktuellem Datum
-- Fortschrittsbalken: `(heutige Kalorien / Tagesziel) * 100 %`
-- Summe heutige Kalorien + Tagesziel (aus AsyncStorage, Key: `dailyGoal`)
-- `FlatList` der heutigen Mahlzeiten:
-  - Mini-Foto (50×50 px, runde Ecken)
-  - Gericht-Name
-  - Kalorien
-  - Uhrzeit
-- Tap auf Eintrag → `router.push('/meal/' + id)`
-- Einstellungen-Icon in der Header-Ecke → `router.push('/settings')`
-- Leerer Zustand: Text „Noch keine Mahlzeiten heute – Foto machen!"
-
-Status: ✅ fertig
+### 3.1 Home-Tab – Tagesübersicht (`app/(tabs)/index.tsx`) — ✅ fertig
+### 3.2 Detailscreen (`app/meal/[id].tsx`) — ✅ fertig
+### 3.3 Einstellungen-Screen (`app/settings.tsx`) — ✅ fertig
 
 ---
 
-### 3.2 Detailscreen
+# NOEL – Karten-Skeleton (Phase 4.0)
 
-Datei: `app/meal/[id].tsx`
+> ✅ Vollständig abgeschlossen. Ron kann direkt aufbauen.
 
-Elemente:
-- Großes Foto (Vollbreite)
-- Gericht-Name, Datum + Uhrzeit
-- Nährwert-Kacheln: Kalorien · Protein · Carbs · Fett
-- Standort-Info (Koordinaten oder „kein Standort" falls nicht vorhanden)
+Datei: `app/(tabs)/map.tsx`
 
-Daten laden mit `getMealById(id)` aus `lib/db.ts`.
-
-Status: ✅ fertig
-
----
-
-### 3.3 Einstellungen-Screen
-
-Datei: `app/settings.tsx`
-
-Felder:
-- **Tagesziel Kalorien** (`keyboardType="numeric"`) → lesen/schreiben via AsyncStorage, Key `dailyGoal`
-- Name/Profil (optional, falls Zeit reicht)
-- Speichern-Button → zurück zu Home
+Fertig gebaut:
+- `MapView` mit `react-native-maps`, Startregion Schweiz
+- `expo-location`: Standortermittlung beim Öffnen des Tabs
+- `animateToRegion()` auf aktuellen Standort
+- `showsUserLocation` Punkt auf Karte
+- Grüner Header mit Locate-Button
+- Banner bei verweigertem Standortzugriff
+- Web-Fallback: `app/(tabs)/map.web.tsx` (Metro-Resolver-Fix in `metro.config.js`)
 
 Status: ✅ fertig
 
@@ -165,29 +133,13 @@ Status: ✅ fertig
 
 ---
 
-# ELIAS – Phase 2: Kamera + AI + Bestätigungsformular
+# ELIAS – Phase 2: AI + Bestätigungsformular
 
-> Startet nach Phase 1. Ist das komplexeste Feature – früh anfangen!
-
-### 2.1 Kamera-Screen
-
-Datei: `app/(tabs)/new-entry.tsx`
-
-Ablauf:
-1. Beim Öffnen: Kamera-Permission abfragen (`expo-image-picker`)
-2. Zwei Buttons: **Foto aufnehmen** / **aus Galerie wählen**
-3. Bei Verweigerung: Hinweistext + Button „Einstellungen öffnen" (`Linking.openSettings()`)
-4. Nach Fotoauswahl:
-   - Foto-URI + Base64 zwischenspeichern
-   - Weiter zu `confirm-entry` via `router.push('/confirm-entry')`
-
-Status: ⬜ offen
-
----
+> Phase 2.1 (Kamera-Screen) wurde von Noel gebaut. Elias startet bei 2.2.
 
 ### 2.2 AI-Anbindung (Vision API)
 
-Datei: `lib/foodAI.ts`
+Datei: `lib/foodAI.ts` (neu anlegen)
 
 ```ts
 // KI-Nutzungsdeklaration:
@@ -225,14 +177,15 @@ Status: ⬜ offen
 
 ### 2.3 Bestätigungs-Formular
 
-Datei: `app/confirm-entry.tsx`
+Datei: `app/confirm-entry.tsx` (Platzhalter vorhanden, muss fertiggestellt werden)
 
 Ablauf:
-1. `ActivityIndicator` anzeigen während `analyzeFoodImage()` läuft
-2. Felder mit AI-Ergebnis vorausfüllen (oder leer bei `null`)
-3. Nutzer kann alle Werte bearbeiten
-4. GPS-Standort holen beim Speichern (`expo-location`, Permission prüfen)
-5. `insertMeal()` aufrufen → `router.replace('/')`
+1. `photoUri` aus Router-Params lesen
+2. `ActivityIndicator` anzeigen während `analyzeFoodImage()` läuft
+3. Felder mit AI-Ergebnis vorausfüllen (oder leer bei `null`)
+4. Nutzer kann alle Werte bearbeiten
+5. Beim Speichern: GPS-Standort holen (`expo-location`, Permission prüfen)
+6. `insertMeal()` aufrufen → `router.replace('/')`
 
 Pflicht-Formularfelder:
 | Feld | keyboardType | Pflicht |
@@ -244,7 +197,7 @@ Pflicht-Formularfelder:
 | Kohlenhydrate (g) | `decimal-pad` | nein |
 | Fett (g) | `decimal-pad` | nein |
 
-Status: ⬜ offen
+Status: 🔧 in Arbeit
 
 ---
 
@@ -252,22 +205,37 @@ Status: ⬜ offen
 
 # RON – Phase 4: Karten-Tab
 
-> Startet nach Phase 1. Braucht `getAllMeals()` aus `lib/db.ts`.
+> Karten-Skeleton (MapView + Standort + UI) wurde von Noel gebaut.
+> Ron ergänzt nur noch die Meal-Marker.
 
-### 4.1 Karte mit Meal-Pins
+### 4.1 Meal-Marker auf Karte
 
-Datei: `app/(tabs)/map.tsx`
+Datei: `app/(tabs)/map.tsx` (an markierter TODO-Stelle einfügen)
 
-Elemente:
-- `MapView` (`react-native-maps`), Startregion auf letzten Eintrag mit Koordinaten
-- Alle Mahlzeiten mit `latitude/longitude != null` als `<Marker>`
-- Tap auf Marker → `<Callout>` mit:
-  - Foto-Thumbnail (60×60)
-  - Gericht-Name
-  - Kalorien
-  - Datum
+Was zu tun ist:
+1. `getAllMeals()` aus `lib/db.ts` laden (useFocusEffect)
+2. Mahlzeiten mit `latitude != null` filtern
+3. Für jede Mahlzeit ein `<Marker>` in den `<MapView>` einfügen
+4. `<Callout>` mit Thumbnail, Gericht-Name, Kalorien, Datum
+5. Tap auf Callout → `router.push('/meal/' + meal.id)`
+6. Wenn keine Mahlzeiten mit GPS: Hinweistext einblenden
 
-Fehlerfall: Keine Einträge mit Koordinaten → Hinweistext auf der Karte.
+```tsx
+// Import am Anfang ergänzen:
+import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import { getAllMeals, Meal } from '@/lib/db';
+import { Callout, Marker } from 'react-native-maps';
+
+// Im MapView:
+{meals.filter(m => m.latitude && m.longitude).map(m => (
+  <Marker key={m.id} coordinate={{ latitude: m.latitude!, longitude: m.longitude! }}>
+    <Callout onPress={() => router.push(`/meal/${m.id}`)}>
+      {/* Thumbnail + Name + Kalorien + Datum */}
+    </Callout>
+  </Marker>
+))}
+```
 
 **Bekannte Einschränkung (in Doku vermerken):** Auf Android in Expo Go kann Google Maps eingeschränkt sein (kein eigener API-Key in der Expo-Go-Binary). Fallback: iOS-Gerät oder EAS Development Build.
 
@@ -279,17 +247,19 @@ Status: ⬜ offen
 
 # RON – Phase 5: Verlauf/Statistik-Tab
 
-> Kann parallel zur Karte (Phase 4) entwickelt werden. Braucht `getMealsByDay()` aus `lib/db.ts`.
+> `getMealsByDay()` in `lib/db.ts` ist bereit.
 
 ### 5.1 Wochenübersicht & Verlaufsliste
 
-Datei: `app/(tabs)/history.tsx`
+Datei: `app/(tabs)/history.tsx` (Mock-Platzhalter vorhanden, mit echten Daten ersetzen)
 
 Elemente:
 - **Balkendiagramm:** Kalorien pro Tag der letzten 7 Tage
   - Bibliothek: `react-native-gifted-charts` (empfohlen) oder eigene SVG-Balken
 - **Liste vergangener Tage** darunter (Datum + Gesamt-Kalorien)
 - Tap auf Tag → zeigt alle Mahlzeiten dieses Tages (z. B. als expandierende Liste)
+
+Daten: `getMealsByDay()` liefert `{ day, total_calories, meals[] }[]`
 
 Status: ⬜ offen
 
@@ -305,8 +275,8 @@ Status: ⬜ offen
 |---|---|---|
 | Kein Internet beim Fotografieren | Formular öffnet leer, manuelle Eingabe | Elias |
 | Location-Permission verweigert | Eintrag ohne Koordinaten, kein Karten-Pin | Elias |
-| Kamera-Permission verweigert | Hinweistext + Einstellungen-Button | Elias |
-| Leere Mahlzeitenliste (Home) | Leerzustand-Text anzeigen | Noel |
+| Kamera-Permission verweigert | Hinweistext + Einstellungen-Button | ✅ Noel (gebaut) |
+| Leere Mahlzeitenliste (Home) | Leerzustand-Text anzeigen | ✅ Noel (gebaut) |
 | Keine Mahlzeiten mit GPS (Karte) | Hinweistext auf der Karte | Ron |
 
 Status: ⬜ offen
@@ -318,7 +288,7 @@ Status: ⬜ offen
 - [ ] Gericht-Name: `keyboardType="default"`
 - [ ] Menge (g): `keyboardType="numeric"`
 - [ ] Kalorien: `keyboardType="decimal-pad"`
-- [ ] Tagesziel (Einstellungen): `keyboardType="numeric"`
+- [ ] Tagesziel (Einstellungen): `keyboardType="numeric"` ✅ Noel (gebaut)
 
 Status: ⬜ offen
 
@@ -350,10 +320,9 @@ Status: ⬜ offen
 ## Abhängigkeiten (wer wartet auf wen)
 
 ```
-Noel (Phase 1)
-    ├──► Elias kann starten (Phase 2)
-    ├──► Ron kann starten (Phase 4 + 5)
-    └──► Noel selbst macht weiter (Phase 3)
+✅ Noel (Phase 1 + 3 + Karten-Skeleton)
+    ├──► Elias: Phase 2.2 + 2.3 (AI + confirm-entry)
+    └──► Ron: Phase 4.1 (Marker) + Phase 5 (Verlauf)
 
 Alle fertig ──► Phase 6 gemeinsam
 ```
