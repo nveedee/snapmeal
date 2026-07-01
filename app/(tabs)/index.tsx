@@ -35,12 +35,20 @@ export default function HomeScreen() {
           <Text style={styles.headerDate}>{todayLabel}</Text>
           <Text style={styles.headerTitle}>SnapMeal</Text>
         </View>
-        <TouchableOpacity
-          style={styles.settingsBtn}
-          onPress={() => router.push('/settings')}
-          activeOpacity={0.7}>
-          <Ionicons name="settings-outline" size={20} color="#fff" />
-        </TouchableOpacity>
+        <View style={styles.headerBtns}>
+          <TouchableOpacity
+            style={styles.settingsBtn}
+            onPress={() => router.push('/gallery')}
+            activeOpacity={0.7}>
+            <Ionicons name="grid-outline" size={20} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.settingsBtn}
+            onPress={() => router.push('/settings')}
+            activeOpacity={0.7}>
+            <Ionicons name="settings-outline" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -126,6 +134,10 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '800',
     letterSpacing: -0.5,
+  },
+  headerBtns: {
+    flexDirection: 'row',
+    gap: 8,
   },
   settingsBtn: {
     width: 38,

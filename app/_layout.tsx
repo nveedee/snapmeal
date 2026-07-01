@@ -25,6 +25,7 @@ export default function RootLayout() {
         <Stack.Screen name="confirm-entry" options={{ title: 'Eintrag bestätigen' }} />
         <Stack.Screen name="meal/[id]" options={{ title: 'Mahlzeit' }} />
         <Stack.Screen name="settings" options={{ title: 'Einstellungen' }} />
+        <Stack.Screen name="gallery" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
