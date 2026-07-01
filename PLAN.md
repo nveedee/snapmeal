@@ -22,7 +22,7 @@ Modul 335 | Stand: 01.07.2026
 |---|---|---|---|
 | 1 | Fundament: Pakete, Navigation, Datenbank | Noel | ✅ fertig |
 | 2 | Kernfeature: Kamera + AI + Bestätigungsformular | Elias | ⬜ offen |
-| 3 | Home-Tab: Tagesübersicht + Detailscreen + Einstellungen | Noel | ⬜ offen |
+| 3 | Home-Tab: Tagesübersicht + Detailscreen + Einstellungen | Noel | ✅ fertig |
 | 4 | Karten-Tab | Ron | ⬜ offen |
 | 5 | Verlauf/Statistik-Tab | Ron | ⬜ offen |
 | 6 | Polish, Fehlerbehandlung, Dokumentationspflichten | Alle | ⬜ offen |
@@ -130,7 +130,7 @@ Elemente:
 - Einstellungen-Icon in der Header-Ecke → `router.push('/settings')`
 - Leerer Zustand: Text „Noch keine Mahlzeiten heute – Foto machen!"
 
-Status: ⬜ offen
+Status: ✅ fertig
 
 ---
 
@@ -146,7 +146,7 @@ Elemente:
 
 Daten laden mit `getMealById(id)` aus `lib/db.ts`.
 
-Status: ⬜ offen
+Status: ✅ fertig
 
 ---
 
@@ -159,7 +159,7 @@ Felder:
 - Name/Profil (optional, falls Zeit reicht)
 - Speichern-Button → zurück zu Home
 
-Status: ⬜ offen
+Status: ✅ fertig
 
 ---
 
