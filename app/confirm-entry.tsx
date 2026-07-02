@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -20,35 +20,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Palette } from '@/constants/theme';
 import { insertMeal } from '@/lib/db';
-
-// ─── ELIAS – Phase 2.2 Hook ──────────────────────────────────────────────────
-// 1. Erstelle lib/foodAI.ts mit analyzeFoodImage(base64: string)
-// 2. Übergib base64 in new-entry.tsx: takePictureAsync({ base64: true })
-// 3. Füge hier folgenden Code ein (nach den useState-Deklarationen):
-//
-//   useEffect(() => {
-//     if (!params.photoBase64) return;
-//     setAiLoading(true);
-//     analyzeFoodImage(params.photoBase64 as string)
-//       .then(result => {
-//         if (!result) return;
-//         setFoodName(result.food_name);
-//         setGrams(String(result.estimated_grams ?? ''));
-//         setCalories(String(result.calories ?? ''));
-//         setProtein(String(result.protein_g ?? ''));
-//         setCarbs(String(result.carbs_g ?? ''));
-//         setFat(String(result.fat_g ?? ''));
-//       })
-//       .finally(() => setAiLoading(false));
-//   }, []);
-//
-// 4. Aktiviere das aiBadge (aiLoading-State ist schon vorbereitet).
-// ─────────────────────────────────────────────────────────────────────────────
+import { analyzeFoodImage } from '@/lib/foodAI';
+import { fetchProductByBarcode } from '@/lib/openFoodFacts';
+import { photoStore } from '@/lib/photoStore';
 
 export default function ConfirmEntryScreen() {
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ photoUri: string }>();
+  const params = useLocalSearchParams<{ photoUri?: string; barcode?: string }>();
   const photoUri = params.photoUri ?? null;
+  const barcode  = params.barcode  ?? null;
 
   // Form state
   const [foodName, setFoodName] = useState('');
@@ -60,7 +40,75 @@ export default function ConfirmEntryScreen() {
 
   // UI state
   const [saving,    setSaving]    = useState(false);
-  const [aiLoading, setAiLoading] = useState(false); // Elias: AI-Analyse läuft
+  const [aiLoading, setAiLoading] = useState(false);
+  const [notFound,  setNotFound]  = useState(false);
+
+  // Basiswerte pro 100 g (gesetzt beim Barcode-Lookup, für automatische Umrechnung)
+  const [base, setBase] = useState<{ cal: number; pro: number; carb: number; fat: number } | null>(null);
+
+  // Barcode → Open Food Facts
+  useEffect(() => {
+    if (!barcode) return;
+    setAiLoading(true);
+    setNotFound(false);
+    fetchProductByBarcode(barcode)
+      .then(result => {
+        if (!result) {
+          setNotFound(true);
+          return;
+        }
+        const b = {
+          cal:  result.calories  ?? 0,
+          pro:  result.protein_g ?? 0,
+          carb: result.carbs_g   ?? 0,
+          fat:  result.fat_g     ?? 0,
+        };
+        setBase(b);
+        setFoodName(result.food_name);
+        // Startmenge: Portionsgrösse aus API oder 100 g
+        const startG = result.serving_size_g ?? 100;
+        const f = startG / 100;
+        setGrams(String(startG));
+        setCalories(String(Math.round(b.cal  * f)));
+        setProtein( String(Math.round(b.pro  * f)));
+        setCarbs(   String(Math.round(b.carb * f)));
+        setFat(     String(Math.round(b.fat  * f)));
+      })
+      .finally(() => setAiLoading(false));
+  }, [barcode]);
+
+  // Foto → Gemini Flash AI-Analyse
+  useEffect(() => {
+    if (!photoUri) return;
+    const b64 = photoStore.get();
+    if (!b64) return;
+    setAiLoading(true);
+    analyzeFoodImage(b64)
+      .then(result => {
+        photoStore.clear();
+        if (!result) return;
+        setFoodName(result.food_name);
+        if (result.estimated_grams) setGrams(String(result.estimated_grams));
+        if (result.calories  != null) setCalories(String(Math.round(result.calories)));
+        if (result.protein_g != null) setProtein(String(Math.round(result.protein_g)));
+        if (result.carbs_g   != null) setCarbs(String(Math.round(result.carbs_g)));
+        if (result.fat_g     != null) setFat(String(Math.round(result.fat_g)));
+      })
+      .finally(() => setAiLoading(false));
+  }, []);
+
+  // Gramm-Eingabe → Nährwerte automatisch neu berechnen
+  const handleGramsChange = (val: string) => {
+    setGrams(val);
+    if (!base) return;
+    const g = parseFloat(val);
+    if (isNaN(g) || g <= 0) return;
+    const f = g / 100;
+    setCalories(String(Math.round(base.cal  * f)));
+    setProtein( String(Math.round(base.pro  * f)));
+    setCarbs(   String(Math.round(base.carb * f)));
+    setFat(     String(Math.round(base.fat  * f)));
+  };
 
   const handleSave = async () => {
     if (!foodName.trim()) {
@@ -148,20 +196,33 @@ export default function ConfirmEntryScreen() {
             </View>
           )}
 
-          {/* KI-Badge (Elias: aiLoading steuert den Inhalt) */}
-          <View style={styles.aiBadge}>
-            {aiLoading ? (
-              <>
-                <ActivityIndicator size="small" color={Palette.green500} />
-                <Text style={styles.aiBadgeText}>KI analysiert Foto …</Text>
-              </>
-            ) : (
-              <>
-                <Ionicons name="sparkles" size={14} color={Palette.green500} />
-                <Text style={styles.aiBadgeText}>Werte prüfen und anpassen</Text>
-              </>
-            )}
-          </View>
+          {/* Status-Badge */}
+          {notFound ? (
+            <View style={[styles.aiBadge, styles.aiBadgeWarn]}>
+              <Ionicons name="alert-circle-outline" size={14} color="#b45309" />
+              <Text style={[styles.aiBadgeText, { color: '#b45309' }]}>
+                Produkt nicht gefunden – bitte manuell eingeben
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.aiBadge}>
+              {aiLoading ? (
+                <>
+                  <ActivityIndicator size="small" color={Palette.green500} />
+                  <Text style={styles.aiBadgeText}>
+                    {barcode ? 'Produkt wird gesucht …' : 'KI analysiert Foto …'}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name={barcode ? 'barcode-outline' : 'sparkles'} size={14} color={Palette.green500} />
+                  <Text style={styles.aiBadgeText}>
+                    {barcode ? 'Werte für 100 g – Menge anpassen' : 'Werte prüfen und anpassen'}
+                  </Text>
+                </>
+              )}
+            </View>
+          )}
 
           {/* Gericht */}
           <View style={styles.card}>
@@ -188,8 +249,8 @@ export default function ConfirmEntryScreen() {
                 <TextInput
                   style={[styles.input, { flex: 1 }]}
                   value={grams}
-                  onChangeText={setGrams}
-                  placeholder="350"
+                  onChangeText={handleGramsChange}
+                  placeholder="100"
                   placeholderTextColor={Palette.green200}
                   keyboardType="numeric"
                   returnKeyType="next"
@@ -320,6 +381,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Palette.green600,
     fontWeight: '600',
+  },
+  aiBadgeWarn: {
+    backgroundColor: '#fef3c7',
   },
 
   card: {

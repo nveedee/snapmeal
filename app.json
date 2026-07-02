@@ -39,7 +39,13 @@
           }
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "SnapMeal braucht die Kamera für Fotos und Barcode-Scans."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

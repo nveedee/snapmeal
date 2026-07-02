@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Palette } from '@/constants/theme';
+import { photoStore } from '@/lib/photoStore';
 
 export default function NewEntryScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -63,8 +64,13 @@ export default function NewEntryScreen() {
     if (capturing || !cameraRef.current) return;
     setCapturing(true);
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.85, exif: false });
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.7,
+        exif:   false,
+        base64: true,
+      });
       if (photo?.uri) {
+        if (photo.base64) photoStore.set(photo.base64);
         router.push({ pathname: '/confirm-entry', params: { photoUri: photo.uri } });
       }
     } finally {
@@ -74,11 +80,13 @@ export default function NewEntryScreen() {
 
   const handleGallery = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.85,
+      mediaTypes:   ImagePicker.MediaTypeOptions.Images,
+      quality:      0.7,
       allowsEditing: false,
+      base64:       true,
     });
     if (!result.canceled && result.assets[0]?.uri) {
+      if (result.assets[0].base64) photoStore.set(result.assets[0].base64);
       router.push({ pathname: '/confirm-entry', params: { photoUri: result.assets[0].uri } });
     }
   };
@@ -124,33 +132,45 @@ export default function NewEntryScreen() {
 
       {/* Bottom controls */}
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 20 }]}>
-        {/* Galerie */}
-        <TouchableOpacity style={styles.sideBtn} onPress={handleGallery} activeOpacity={0.75}>
-          <Ionicons name="images-outline" size={26} color="#fff" />
-          <Text style={styles.sideBtnLabel}>Galerie</Text>
+
+        {/* KI-generiert (Claude Sonnet 4.6, 02.07.2026) – Barcode-Button-Zeile
+            Zweck: Navigationseinstieg zum Barcode-Scanner-Screen */}
+        <TouchableOpacity
+          style={styles.barcodeBtn}
+          onPress={() => router.push('/barcode-scan')}
+          activeOpacity={0.8}>
+          <Ionicons name="barcode-outline" size={18} color="#fff" />
+          <Text style={styles.barcodeBtnText}>Barcode scannen</Text>
         </TouchableOpacity>
 
-        {/* Auslöser */}
-        <TouchableOpacity
-          style={styles.captureBtn}
-          onPress={handleCapture}
-          activeOpacity={0.85}
-          disabled={capturing}>
-          {capturing ? (
-            <ActivityIndicator color={Palette.green900} size="small" />
-          ) : (
-            <View style={styles.captureInner} />
-          )}
-        </TouchableOpacity>
+        {/* Hauptzeile: Galerie | Auslöser | Wechseln */}
+        <View style={styles.controls}>
+          <TouchableOpacity style={styles.sideBtn} onPress={handleGallery} activeOpacity={0.75}>
+            <Ionicons name="images-outline" size={26} color="#fff" />
+            <Text style={styles.sideBtnLabel}>Galerie</Text>
+          </TouchableOpacity>
 
-        {/* Kamera wechseln */}
-        <TouchableOpacity
-          style={styles.sideBtn}
-          onPress={() => setFacing((f) => (f === 'back' ? 'front' : 'back'))}
-          activeOpacity={0.75}>
-          <Ionicons name="camera-reverse-outline" size={26} color="#fff" />
-          <Text style={styles.sideBtnLabel}>Wechseln</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.captureBtn}
+            onPress={handleCapture}
+            activeOpacity={0.85}
+            disabled={capturing}>
+            {capturing ? (
+              <ActivityIndicator color={Palette.green900} size="small" />
+            ) : (
+              <View style={styles.captureInner} />
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.sideBtn}
+            onPress={() => setFacing((f) => (f === 'back' ? 'front' : 'back'))}
+            activeOpacity={0.75}>
+            <Ionicons name="camera-reverse-outline" size={26} color="#fff" />
+            <Text style={styles.sideBtnLabel}>Wechseln</Text>
+          </TouchableOpacity>
+        </View>
+
       </View>
     </View>
   );
@@ -283,12 +303,33 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    alignItems: 'center',
+    paddingHorizontal: 36,
+    paddingTop: 16,
+    gap: 14,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  barcodeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 50,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+  },
+  barcodeBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  controls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 36,
-    paddingTop: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: '100%',
   },
   sideBtn: {
     width: 64,

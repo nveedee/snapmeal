@@ -26,6 +26,7 @@ export default function RootLayout() {
         <Stack.Screen name="meal/[id]" options={{ title: 'Mahlzeit' }} />
         <Stack.Screen name="settings" options={{ title: 'Einstellungen' }} />
         <Stack.Screen name="gallery" options={{ headerShown: false }} />
+        <Stack.Screen name="barcode-scan" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

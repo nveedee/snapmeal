@@ -1,27 +1,75 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
+import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Palette } from '@/constants/theme';
+import { getMealsByDay } from '@/lib/db';
 
-// TODO Ron: Verlauf/Statistik mit Balkendiagramm (Phase 5)
-
-const MOCK_DAYS = [
-  { day: 'Mo', kcal: 1840 },
-  { day: 'Di', kcal: 2100 },
-  { day: 'Mi', kcal: 1650 },
-  { day: 'Do', kcal: 1920 },
-  { day: 'Fr', kcal: 2250 },
-  { day: 'Sa', kcal: 1400 },
-  { day: 'So', kcal: 0 },
-];
-
-const GOAL = 2000;
-const MAX = Math.max(...MOCK_DAYS.map((d) => d.kcal), GOAL);
+const DAY_LABELS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const BAR_HEIGHT = 140;
+const GOAL_KEY   = 'dailyGoal';
+const DEFAULT_GOAL = 2000;
+
+type DayEntry = {
+  date:    string;   // 'YYYY-MM-DD'
+  label:   string;   // 'Mo'
+  kcal:    number;
+  meals:   number;
+  isToday: boolean;
+};
+
+function getLast7Days(): DayEntry[] {
+  const result: DayEntry[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    result.push({
+      date:    d.toISOString().slice(0, 10),
+      label:   DAY_LABELS[d.getDay()],
+      kcal:    0,
+      meals:   0,
+      isToday: i === 0,
+    });
+  }
+  return result;
+}
 
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
+  const [days, setDays]   = useState<DayEntry[]>(getLast7Days());
+  const [goal, setGoal]   = useState(DEFAULT_GOAL);
+
+  useFocusEffect(
+    useCallback(() => {
+      const load = async () => {
+        const [dbDays, storedGoal] = await Promise.all([
+          getMealsByDay(),
+          AsyncStorage.getItem(GOAL_KEY),
+        ]);
+
+        const g = storedGoal ? parseInt(storedGoal, 10) : DEFAULT_GOAL;
+        setGoal(isNaN(g) ? DEFAULT_GOAL : g);
+
+        // Merge DB-Daten in die letzten 7 Tage
+        const skeleton = getLast7Days();
+        const byDate = Object.fromEntries(dbDays.map(d => [d.day, d]));
+        setDays(
+          skeleton.map(entry => {
+            const db = byDate[entry.date];
+            return db
+              ? { ...entry, kcal: Math.round(db.total_calories), meals: db.meals.length }
+              : entry;
+          }),
+        );
+      };
+      load();
+    }, []),
+  );
+
+  const max = Math.max(...days.map(d => d.kcal), goal);
 
   return (
     <View style={styles.root}>
@@ -40,30 +88,33 @@ export default function HistoryScreen() {
           <Text style={styles.cardLabel}>DIESE WOCHE</Text>
 
           <View style={styles.chart}>
-            {/* Goal line */}
-            <View style={[styles.goalLine, { bottom: (GOAL / MAX) * BAR_HEIGHT }]}>
+            {/* Ziel-Linie */}
+            <View style={[styles.goalLine, { bottom: (goal / max) * BAR_HEIGHT }]}>
               <Text style={styles.goalLineLabel}>Ziel</Text>
             </View>
 
-            {MOCK_DAYS.map((d) => {
-              const barH = d.kcal > 0 ? (d.kcal / MAX) * BAR_HEIGHT : 4;
-              const overGoal = d.kcal > GOAL;
-              const isToday = d.day === 'So';
+            {days.map(d => {
+              const barH    = d.kcal > 0 ? (d.kcal / max) * BAR_HEIGHT : 4;
+              const overGoal = d.kcal > goal;
               return (
-                <View key={d.day} style={styles.barCol}>
+                <View key={d.date} style={styles.barCol}>
                   {d.kcal > 0 && (
-                    <Text style={styles.barValue}>{(d.kcal / 1000).toFixed(1)}k</Text>
+                    <Text style={styles.barValue}>
+                      {d.kcal >= 1000 ? `${(d.kcal / 1000).toFixed(1)}k` : String(d.kcal)}
+                    </Text>
                   )}
                   <View
                     style={[
                       styles.bar,
                       { height: barH },
-                      overGoal && styles.barOver,
-                      isToday && styles.barToday,
+                      overGoal   && styles.barOver,
+                      d.isToday  && styles.barToday,
                       d.kcal === 0 && styles.barEmpty,
                     ]}
                   />
-                  <Text style={[styles.barDay, isToday && styles.barDayToday]}>{d.day}</Text>
+                  <Text style={[styles.barDay, d.isToday && styles.barDayToday]}>
+                    {d.label}
+                  </Text>
                 </View>
               );
             })}
@@ -81,14 +132,17 @@ export default function HistoryScreen() {
           </View>
         </View>
 
-        {/* Wochenübersicht */}
+        {/* Tagesliste */}
         <Text style={styles.sectionTitle}>Tage</Text>
 
-        {MOCK_DAYS.slice().reverse().map((d) => (
-          <View key={d.day} style={styles.dayRow}>
-            <View style={styles.dayBadge}>
-              <Text style={styles.dayBadgeText}>{d.day}</Text>
+        {days.slice().reverse().map(d => (
+          <View key={d.date} style={styles.dayRow}>
+            <View style={[styles.dayBadge, d.isToday && styles.dayBadgeToday]}>
+              <Text style={[styles.dayBadgeText, d.isToday && styles.dayBadgeTextToday]}>
+                {d.label}
+              </Text>
             </View>
+
             <View style={styles.dayInfo}>
               <Text style={styles.dayKcal}>
                 {d.kcal > 0 ? `${d.kcal.toLocaleString('de-CH')} kcal` : '—'}
@@ -99,15 +153,20 @@ export default function HistoryScreen() {
                     style={[
                       styles.miniFill,
                       {
-                        width: `${Math.min((d.kcal / GOAL) * 100, 100)}%` as any,
-                        backgroundColor: d.kcal > GOAL ? '#F4A261' : Palette.green400,
+                        width: `${Math.min((d.kcal / goal) * 100, 100)}%` as any,
+                        backgroundColor: d.kcal > goal ? '#F4A261' : Palette.green400,
                       },
                     ]}
                   />
                 </View>
               )}
             </View>
-            <Text style={styles.dayMeals}>{d.kcal > 0 ? '3 Mahlzeiten' : 'Keine Daten'}</Text>
+
+            <Text style={styles.dayMeals}>
+              {d.meals > 0
+                ? `${d.meals} Mahlzeit${d.meals !== 1 ? 'en' : ''}`
+                : 'Keine Daten'}
+            </Text>
           </View>
         ))}
 
@@ -117,10 +176,8 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: Palette.green50,
-  },
+  root: { flex: 1, backgroundColor: Palette.green50 },
+
   header: {
     backgroundColor: Palette.green400,
     paddingHorizontal: 20,
@@ -129,23 +186,13 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 28,
   },
   headerTitle: {
-    color: '#fff',
-    fontSize: 28,
-    fontWeight: '800',
-    letterSpacing: -0.5,
+    color: '#fff', fontSize: 28, fontWeight: '800', letterSpacing: -0.5,
   },
   headerSubtitle: {
-    color: 'rgba(255,255,255,0.72)',
-    fontSize: 13,
-    fontWeight: '500',
-    marginTop: 2,
+    color: 'rgba(255,255,255,0.72)', fontSize: 13, fontWeight: '500', marginTop: 2,
   },
 
-  scroll: {
-    padding: 16,
-    gap: 12,
-    paddingBottom: 32,
-  },
+  scroll: { padding: 16, gap: 12, paddingBottom: 32 },
 
   card: {
     backgroundColor: Palette.white,
@@ -159,11 +206,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   cardLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: Palette.muted,
-    letterSpacing: 1,
-    marginBottom: 16,
+    fontSize: 10, fontWeight: '700', color: Palette.muted, letterSpacing: 1, marginBottom: 16,
   },
 
   chart: {
@@ -174,84 +217,30 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   goalLine: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 1,
-    borderTopWidth: 1,
-    borderColor: Palette.muted,
-    borderStyle: 'dashed',
+    position: 'absolute', left: 0, right: 0,
+    height: 1, borderTopWidth: 1, borderColor: Palette.muted, borderStyle: 'dashed',
   },
   goalLineLabel: {
-    position: 'absolute',
-    right: 0,
-    top: -16,
-    fontSize: 10,
-    color: Palette.muted,
-    fontWeight: '600',
+    position: 'absolute', right: 0, top: -16,
+    fontSize: 10, color: Palette.muted, fontWeight: '600',
   },
 
-  barCol: {
-    alignItems: 'center',
-    flex: 1,
-    gap: 4,
-  },
-  barValue: {
-    fontSize: 9,
-    color: Palette.muted,
-    fontWeight: '600',
-  },
-  bar: {
-    width: 28,
-    borderRadius: 8,
-    backgroundColor: Palette.green400,
-  },
-  barOver: {
-    backgroundColor: '#F4A261',
-  },
-  barToday: {
-    backgroundColor: Palette.green600,
-  },
-  barEmpty: {
-    backgroundColor: Palette.green100,
-    height: 4,
-  },
-  barDay: {
-    fontSize: 11,
-    color: Palette.muted,
-    fontWeight: '600',
-  },
-  barDayToday: {
-    color: Palette.green600,
-    fontWeight: '800',
-  },
+  barCol:  { alignItems: 'center', flex: 1, gap: 4 },
+  barValue: { fontSize: 9, color: Palette.muted, fontWeight: '600' },
+  bar:     { width: 28, borderRadius: 8, backgroundColor: Palette.green400 },
+  barOver:  { backgroundColor: '#F4A261' },
+  barToday: { backgroundColor: Palette.green600 },
+  barEmpty: { backgroundColor: Palette.green100, height: 4 },
+  barDay:   { fontSize: 11, color: Palette.muted, fontWeight: '600' },
+  barDayToday: { color: Palette.green600, fontWeight: '800' },
 
-  legend: {
-    flexDirection: 'row',
-    gap: 16,
-    marginTop: 16,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  legendText: {
-    fontSize: 12,
-    color: Palette.muted,
-    fontWeight: '500',
-  },
+  legend:     { flexDirection: 'row', gap: 16, marginTop: 16 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot:  { width: 8, height: 8, borderRadius: 4 },
+  legendText: { fontSize: 12, color: Palette.muted, fontWeight: '500' },
 
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Palette.green900,
-    marginTop: 4,
+    fontSize: 18, fontWeight: '700', color: Palette.green900, marginTop: 4,
   },
 
   dayRow: {
@@ -268,40 +257,18 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   dayBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 40, height: 40, borderRadius: 12,
     backgroundColor: Palette.green100,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
-  dayBadgeText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Palette.green600,
-  },
-  dayInfo: {
-    flex: 1,
-    gap: 6,
-  },
-  dayKcal: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Palette.green900,
-  },
+  dayBadgeToday: { backgroundColor: Palette.green400 },
+  dayBadgeText:  { fontSize: 13, fontWeight: '700', color: Palette.green600 },
+  dayBadgeTextToday: { color: '#fff' },
+  dayInfo:  { flex: 1, gap: 6 },
+  dayKcal:  { fontSize: 15, fontWeight: '700', color: Palette.green900 },
   miniTrack: {
-    height: 5,
-    backgroundColor: Palette.green100,
-    borderRadius: 3,
-    overflow: 'hidden',
+    height: 5, backgroundColor: Palette.green100, borderRadius: 3, overflow: 'hidden',
   },
-  miniFill: {
-    height: 5,
-    borderRadius: 3,
-  },
-  dayMeals: {
-    fontSize: 11,
-    color: Palette.muted,
-    fontWeight: '500',
-  },
+  miniFill:  { height: 5, borderRadius: 3 },
+  dayMeals:  { fontSize: 11, color: Palette.muted, fontWeight: '500' },
 });
