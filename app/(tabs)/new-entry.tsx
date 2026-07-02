@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import {
   ActivityIndicator,
   Linking,
@@ -24,6 +25,7 @@ export default function NewEntryScreen() {
   const [capturing, setCapturing] = useState(false);
   const cameraRef = useRef<CameraView>(null);
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
 
   // ── Noch laden ──
   if (!permission) {
@@ -102,7 +104,9 @@ export default function NewEntryScreen() {
     <View style={styles.root}>
       <StatusBar style="light" />
 
-      <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing={facing} flash={flash} />
+      {isFocused && (
+        <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing={facing} flash={flash} />
+      )}
 
       {/* Top controls */}
       <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>

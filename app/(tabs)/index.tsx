@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Palette } from '@/constants/theme';
 import { Meal, getMealsToday } from '@/lib/db';
+import SnapMealLogo from '@/components/SnapMealLogo';
 
 const GOAL_KEY = 'dailyGoal';
 const DEFAULT_GOAL = 2000;
@@ -73,9 +74,12 @@ export default function HomeScreen() {
 
       {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <View>
-          <Text style={styles.headerDate}>{todayLabel}</Text>
-          <Text style={styles.headerTitle}>SnapMeal</Text>
+        <View style={styles.headerLeft}>
+          <SnapMealLogo size={44} borderRadius={12} />
+          <View>
+            <Text style={styles.headerDate}>{todayLabel}</Text>
+            <Text style={styles.headerTitle}>SnapMeal</Text>
+          </View>
         </View>
         <View style={styles.headerBtns}>
           <TouchableOpacity
@@ -191,6 +195,16 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerLogo: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
   },
   headerDate: {
     color: 'rgba(255,255,255,0.72)',

@@ -3,11 +3,11 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Palette } from '@/constants/theme';
-import { Meal, getMealById } from '@/lib/db';
+import { Meal, deleteMeal, getMealById } from '@/lib/db';
 
 function formatDateTime(iso: string) {
   const d = new Date(iso);
@@ -26,6 +26,27 @@ export default function MealDetailScreen() {
   const insets = useSafeAreaInsets();
   const [meal, setMeal] = useState<Meal | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Eintrag löschen',
+      `„${meal?.food_name}" wirklich löschen?`,
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Löschen',
+          style: 'destructive',
+          onPress: async () => {
+            if (!meal) return;
+            setDeleting(true);
+            await deleteMeal(meal.id);
+            router.replace('/');
+          },
+        },
+      ],
+    );
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -101,7 +122,7 @@ export default function MealDetailScreen() {
           <View style={styles.metaRow}>
             <Ionicons name="time-outline" size={13} color={Palette.muted} />
             <Text style={styles.metaText}>
-              {formatDateTime(meal.timestamp)}{meal.grams ? ` · ${meal.grams} g` : ''}
+              {formatDateTime(meal.timestamp)}{meal.grams ? ` · ${meal.grams} ${meal.unit ?? 'g'}` : ''}
             </Text>
           </View>
         </View>
@@ -134,6 +155,16 @@ export default function MealDetailScreen() {
             </View>
           </View>
         </View>
+
+        {/* ── Löschen ── */}
+        <TouchableOpacity
+          style={[styles.deleteBtn, deleting && { opacity: 0.5 }]}
+          onPress={handleDelete}
+          activeOpacity={0.8}
+          disabled={deleting}>
+          <Ionicons name="trash-outline" size={18} color="#EF4444" />
+          <Text style={styles.deleteBtnText}>Eintrag löschen</Text>
+        </TouchableOpacity>
 
       </ScrollView>
     </View>
@@ -221,4 +252,18 @@ const styles = StyleSheet.create({
   cardIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   cardRowLabel: { fontSize: 11, color: Palette.muted, fontWeight: '600' },
   cardRowValue: { fontSize: 14, fontWeight: '600', color: Palette.green900, marginTop: 2 },
+
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: '#FCA5A5',
+    borderRadius: 50,
+    paddingVertical: 14,
+    backgroundColor: '#FFF5F5',
+    marginTop: 4,
+  },
+  deleteBtnText: { color: '#EF4444', fontSize: 15, fontWeight: '700' },
 });

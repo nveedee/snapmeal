@@ -6,6 +6,7 @@ export type Meal = {
   photo_uri: string | null;
   food_name: string;
   grams: number | null;
+  unit: 'g' | 'ml';
   calories: number | null;
   protein_g: number | null;
   carbs_g: number | null;
@@ -35,6 +36,7 @@ export async function initDB(): Promise<void> {
       photo_uri TEXT,
       food_name TEXT NOT NULL,
       grams     REAL,
+      unit      TEXT DEFAULT 'g',
       calories  REAL,
       protein_g REAL,
       carbs_g   REAL,
@@ -44,17 +46,24 @@ export async function initDB(): Promise<void> {
       timestamp TEXT NOT NULL
     );
   `);
+  // Migration: unit-Spalte für bestehende Datenbanken
+  try {
+    await db.execAsync(`ALTER TABLE meals ADD COLUMN unit TEXT DEFAULT 'g'`);
+  } catch {
+    // Spalte existiert bereits – kein Fehler
+  }
 }
 
 export async function insertMeal(meal: NewMeal): Promise<number> {
   if (Platform.OS === 'web') return -1;
   const db = await getDB();
   const result = await db.runAsync(
-    `INSERT INTO meals (photo_uri, food_name, grams, calories, protein_g, carbs_g, fat_g, latitude, longitude, timestamp)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO meals (photo_uri, food_name, grams, unit, calories, protein_g, carbs_g, fat_g, latitude, longitude, timestamp)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     meal.photo_uri,
     meal.food_name,
     meal.grams,
+    meal.unit ?? 'g',
     meal.calories,
     meal.protein_g,
     meal.carbs_g,
@@ -64,6 +73,12 @@ export async function insertMeal(meal: NewMeal): Promise<number> {
     meal.timestamp,
   );
   return result.lastInsertRowId;
+}
+
+export async function deleteMeal(id: number): Promise<void> {
+  if (Platform.OS === 'web') return;
+  const db = await getDB();
+  await db.runAsync(`DELETE FROM meals WHERE id = ?`, id);
 }
 
 export async function getMealsToday(): Promise<Meal[]> {

@@ -43,6 +43,8 @@ export default function ConfirmEntryScreen() {
   const [aiLoading, setAiLoading] = useState(false);
   const [notFound,  setNotFound]  = useState(false);
 
+  const [unit, setUnit] = useState<'g' | 'ml'>('g');
+
   // Basiswerte pro 100 g (gesetzt beim Barcode-Lookup, für automatische Umrechnung)
   const [base, setBase] = useState<{ cal: number; pro: number; carb: number; fat: number } | null>(null);
 
@@ -140,6 +142,7 @@ export default function ConfirmEntryScreen() {
         photo_uri: photoUri,
         food_name: foodName.trim(),
         grams:     grams    ? parseFloat(grams)    : null,
+        unit,
         calories:  cal,
         protein_g: protein  ? parseFloat(protein)  : null,
         carbs_g:   carbs    ? parseFloat(carbs)    : null,
@@ -250,12 +253,25 @@ export default function ConfirmEntryScreen() {
                   style={[styles.input, { flex: 1 }]}
                   value={grams}
                   onChangeText={handleGramsChange}
-                  placeholder="100"
+                  placeholder={unit === 'ml' ? '250' : '100'}
                   placeholderTextColor={Palette.green200}
                   keyboardType="numeric"
                   returnKeyType="next"
                 />
-                <Text style={styles.inputUnit}>g</Text>
+                {/* g / ml Toggle */}
+                <View style={styles.unitToggle}>
+                  {(['g', 'ml'] as const).map((u) => (
+                    <TouchableOpacity
+                      key={u}
+                      style={[styles.unitBtn, unit === u && styles.unitBtnActive]}
+                      onPress={() => setUnit(u)}
+                      activeOpacity={0.7}>
+                      <Text style={[styles.unitBtnText, unit === u && styles.unitBtnTextActive]}>
+                        {u}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
             </View>
           </View>
@@ -460,5 +476,29 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Palette.green200,
     marginTop: 4,
+  },
+
+  unitToggle: {
+    flexDirection: 'row',
+    backgroundColor: Palette.green100,
+    borderRadius: 10,
+    padding: 2,
+    gap: 2,
+  },
+  unitBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  unitBtnActive: {
+    backgroundColor: Palette.green400,
+  },
+  unitBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Palette.muted,
+  },
+  unitBtnTextActive: {
+    color: '#fff',
   },
 });

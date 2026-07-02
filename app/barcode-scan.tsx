@@ -8,7 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   ActivityIndicator,
   Linking,
@@ -24,7 +25,15 @@ import { Palette } from '@/constants/theme';
 export default function BarcodeScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
   const insets = useSafeAreaInsets();
+
+  // iOS gibt die Kamera nicht sofort frei wenn der vorherige Screen sie hatte.
+  // 200ms Verzögerung verhindert den Schwarzen Screen.
+  useFocusEffect(useCallback(() => {
+    const t = setTimeout(() => setCameraActive(true), 200);
+    return () => { clearTimeout(t); setCameraActive(false); };
+  }, []));
 
   // Laden
   if (!permission) {
@@ -90,14 +99,16 @@ export default function BarcodeScanScreen() {
        *   EAN-8 (kleine Verpackungen), UPC-A (USA) – reicht für Open Food Facts.
        * Quelle Expo Camera Docs: https://docs.expo.dev/versions/v54.0.0/sdk/camera/
        */}
-      <CameraView
-        style={StyleSheet.absoluteFill}
-        facing="back"
-        onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
-        barcodeScannerSettings={{
-          barcodeTypes: ['ean13', 'ean8', 'upc_a'],
-        }}
-      />
+      {cameraActive && (
+        <CameraView
+          style={StyleSheet.absoluteFill}
+          facing="back"
+          onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
+          barcodeScannerSettings={{
+            barcodeTypes: ['ean13', 'ean8', 'upc_a'],
+          }}
+        />
+      )}
 
       {/* Zurück-Button */}
       <TouchableOpacity
