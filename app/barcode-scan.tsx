@@ -1,14 +1,8 @@
-/*
- * KI-generiert (Claude Sonnet 4.6, 02.07.2026)
- * Zweck: Barcode-Scanner-Screen – scannt EAN/UPC-Barcodes via CameraView und
- *        übergibt den Code an den Bestätigungs-Screen. Keine API-Logik hier.
- */
-
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   ActivityIndicator,
@@ -73,12 +67,6 @@ export default function BarcodeScanScreen() {
     );
   }
 
-  /*
-   * KI-generiert (Claude Sonnet 4.6, 02.07.2026)
-   * Zweck: onBarcodeScanned-Handler – gibt gescannten Barcode via router.push
-   *        an den Bestätigungs-Screen weiter. Verarbeitung (API-Call, Formular-
-   *        befüllung) findet dort statt – TODO Elias (Phase 2.2 / OpenFoodFacts).
-   */
   const handleBarcodeScanned = ({ data }: { data: string }) => {
     if (scanned) return;
     setScanned(true);
@@ -92,13 +80,6 @@ export default function BarcodeScanScreen() {
     <View style={styles.root}>
       <StatusBar style="light" />
 
-      {/*
-       * KI-generiert (Claude Sonnet 4.6, 02.07.2026)
-       * Zweck: CameraView mit Barcode-Scanner.
-       *   barcodeScannerSettings.barcodeTypes: EAN-13 (Lebensmittel EU),
-       *   EAN-8 (kleine Verpackungen), UPC-A (USA) – reicht für Open Food Facts.
-       * Quelle Expo Camera Docs: https://docs.expo.dev/versions/v54.0.0/sdk/camera/
-       */}
       {cameraActive && (
         <CameraView
           style={StyleSheet.absoluteFill}

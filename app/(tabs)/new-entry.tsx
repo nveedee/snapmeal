@@ -137,8 +137,6 @@ export default function NewEntryScreen() {
       {/* Bottom controls */}
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 20 }]}>
 
-        {/* KI-generiert (Claude Sonnet 4.6, 02.07.2026) – Barcode-Button-Zeile
-            Zweck: Navigationseinstieg zum Barcode-Scanner-Screen */}
         <TouchableOpacity
           style={styles.barcodeBtn}
           onPress={() => router.push('/barcode-scan')}

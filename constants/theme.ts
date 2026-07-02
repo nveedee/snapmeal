@@ -1,10 +1,3 @@
-/**
- * KI-generiert (Claude Code / Claude Sonnet 4.6, 02.07.2026)
- * Zweck: Zentrales Design-System für SnapMeal – Farb-, Typografie- und
- *        Abstands-Tokens als exportierte Konstanten.
- * Verwendung: import { Palette, Spacing, Radius, Shadow, Typography } from '@/constants/theme';
- */
-
 import { Platform } from 'react-native';
 
 // ─── Farbpalette ──────────────────────────────────────────────────────────────

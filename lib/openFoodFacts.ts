@@ -5,7 +5,6 @@
  * Quelle API-Docs: https://openfoodfacts.github.io/openfoodfacts-server/api/
  */
 
-// KI-generiert – Zweck: Rohe Nährwert-Struktur der API typisieren
 export type OffNutriments = {
   'energy-kcal_100g'?: number;
   proteins_100g?: number;
@@ -14,14 +13,12 @@ export type OffNutriments = {
   [key: string]: number | undefined;
 };
 
-// KI-generiert – Zweck: Produkt-Objekt innerhalb der API-Antwort
 export type OffProduct = {
   product_name?: string;
   nutriments?: OffNutriments;
   serving_quantity?: number;
 };
 
-// KI-generiert – Zweck: Wrapper der gesamten API-Antwort
 export type OffApiResponse = {
   status: number;        // 1 = gefunden, 0 = nicht gefunden
   status_verbose: string;
@@ -40,13 +37,6 @@ export type ProductData = {
 
 const TIMEOUT_MS = 15_000;
 
-/*
- * KI-generiert (Claude Sonnet 4.6, 02.07.2026)
- * Zweck: Produkt-Nährwerte von Open Food Facts abrufen.
- * Endpoint: GET https://world.openfoodfacts.org/api/v2/product/{barcode}.json
- *           ?fields=product_name,nutriments,serving_quantity
- * Rückgabe: ProductData (Werte pro 100g) oder null bei Fehler/nicht gefunden.
- */
 export async function fetchProductByBarcode(barcode: string): Promise<ProductData | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
